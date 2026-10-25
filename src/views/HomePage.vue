@@ -1,56 +1,111 @@
 <template>
   <ion-page>
-    <ion-header :translucent="true">
-      <ion-toolbar>
-        <ion-title>Blank</ion-title>
+    <ion-header>
+      <ion-toolbar color="primary">
+        <ion-title>Prakiraan Cuaca Jakarta</ion-title>
       </ion-toolbar>
     </ion-header>
 
-    <ion-content :fullscreen="true">
-      <ion-header collapse="condense">
-        <ion-toolbar>
-          <ion-title size="large">Blank</ion-title>
-        </ion-toolbar>
-      </ion-header>
+    <ion-content class="ion-padding">
+      <ion-button expand="block" @click="fetchWeatherData" :disabled="loading">
+        {{ loading ? 'Memuat Data...' : 'Refresh Data Cuaca' }}
+      </ion-button>
 
-      <div id="container">
-        <strong>Ready to create an app?</strong>
-        <p>Start with Ionic <a target="_blank" rel="noopener noreferrer" href="https://ionicframework.com/docs/components">UI Components</a></p>
-      </div>
+      <p v-if="loading" class="status-msg">Sedang mengambil data dari API...</p>
+      <p v-if="error" class="error-msg">{{ error }}</p>
+
+      <table v-if="weatherList.length > 0" class="weather-table">
+        <thead>
+          <tr>
+            <th>No</th>
+            <th>Waktu (time)</th>
+            <th>Suhu (temperature_2m)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="(item, index) in weatherList" :key="item.time">
+            <td>{{ index + 1 }}</td>
+            <td>{{ item.time }}</td>
+            <td>{{ item.temperature_2m }} °C</td>
+          </tr>
+        </tbody>
+      </table>
     </ion-content>
   </ion-page>
 </template>
 
 <script setup lang="ts">
-import { IonContent, IonHeader, IonPage, IonTitle, IonToolbar } from '@ionic/vue';
+import { ref, onMounted } from 'vue';
+import { IonPage, IonHeader, IonToolbar, IonTitle, IonContent, IonButton } from '@ionic/vue';
+import { getWeatherData } from '@/services/weatherService';
+
+interface WeatherItem {
+  time: string;
+  temperature_2m: number;
+}
+
+const weatherList = ref<WeatherItem[]>([]);
+const loading = ref<boolean>(false);
+const error = ref<string>('');
+
+const fetchWeatherData = async () => {
+  loading.value = true;
+  error.value = '';
+  try {
+    const response = await getWeatherData();
+    const times: string[] = response.data.hourly.time;
+    const temperatures: number[] = response.data.hourly.temperature_2m;
+
+    weatherList.value = times.slice(0, 10).map((time, index) => ({
+      time: new Date(time).toLocaleString('id-ID'), // dd/mm/yyyy, jam
+      temperature_2m: temperatures[index]
+    }));
+  } catch (err) {
+    error.value = 'Gagal ambil data dari API.';
+    console.error(err);
+  } finally {
+    loading.value = false;
+  }
+};
+
+onMounted(() => {
+  fetchWeatherData();
+});
 </script>
 
 <style scoped>
-#container {
+.status-msg {
   text-align: center;
-  
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 50%;
-  transform: translateY(-50%);
+  color: #666;
+  margin-top: 12px;
 }
 
-#container strong {
-  font-size: 20px;
-  line-height: 26px;
+.error-msg {
+  text-align: center;
+  color: #d32f2f;
+  margin-top: 12px;
 }
 
-#container p {
-  font-size: 16px;
-  line-height: 22px;
-  
-  color: #8c8c8c;
-  
-  margin: 0;
+.weather-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 16px;
+  font-size: 14px;
 }
 
-#container a {
-  text-decoration: none;
+.weather-table th,
+.weather-table td {
+  border: 1px solid #ddd;
+  padding: 8px 10px;
+  text-align: left;
+}
+
+.weather-table th {
+  background-color: #3880ff;
+  color: white;
+}
+
+.weather-table tr:nth-child(even) {
+  background-color: #f9f9f9;
 }
 </style>
